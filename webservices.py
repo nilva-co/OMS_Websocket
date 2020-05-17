@@ -45,7 +45,7 @@ class Hub:
             def gotit(**data):
                 print(data)
                 
-            def token_get(**data):
+            def token_get(data):
                 print('token:', data)
 
             self.connection.error += print_error
