@@ -31,19 +31,36 @@ class AddOrder:
         self.ExtraData = ExtraData
 
     def to_json(self):
-        return {"OrderSide": self.OrderSide,
-                "InstrumentId": self.InstrumentId,
-                "Quantity": self.Quantity,
-                "Price": self.Price,
-                "CreditSource": self.CreditSource,
-                "MinimumQuantity": self.MinimumQuantity,
-                "DisclosedQuantity": self.DisclosedQuantity,
-                "Validity": self.Validity,
-                "ValidityDate.Year": self.ValidityDateYear,
-                "ValidityDate.Month": self.ValidityDateMonth,
-                "ValidityDate.Day": self.ValidityDateDay,
-                "Repeat": self.Repeat,
-                "ExtraData": self.ExtraData}
+        return [self.OrderSide,
+                self.InstrumentId,
+                self.Quantity,
+                self.Price,
+                self.CreditSource,
+                self.MinimumQuantity,
+                self.DisclosedQuantity,
+                self.Validity,
+                self.ValidityDateYear,
+                self.ValidityDateMonth,
+                self.ValidityDateDay,
+                self.Repeat,
+                self.ExtraData]
+
+    #
+    # def to_json(self):
+    #     return {"OrderSide": self.OrderSide,
+    #             "InstrumentId": self.InstrumentId,
+    #             "Quantity": self.Quantity,
+    #             "Price": self.Price,
+    #             "CreditSource": self.CreditSource,
+    #             "MinimumQuantity": self.MinimumQuantity,
+    #             "DisclosedQuantity": self.DisclosedQuantity,
+    #             "Validity": self.Validity,
+    #             "ValidityDate.Year": self.ValidityDateYear,
+    #             "ValidityDate.Month": self.ValidityDateMonth,
+    #             "ValidityDate.Day": self.ValidityDateDay,
+    #             "Repeat": self.Repeat,
+    #             "ExtraData": self.ExtraData}
+    #
 
 
 class EditOrder:
@@ -68,56 +85,90 @@ class EditOrder:
         self.ValidityDateDay = ValidityDateDay
 
     def to_json(self):
-        return {"Id": self.Id,
-                "Quantity": self.Quantity,
-                "Price": self.Price,
-                "MinimumQuantity": self.MinimumQuantity,
-                "DisclosedQuantity": self.DisclosedQuantity,
-                "Validity": self.Validity,
-                "ValidityDate.Year": self.ValidityDateYear,
-                "ValidityDate.Month": self.ValidityDateMonth,
-                "ValidityDate.Day": self.ValidityDateDay,
-                }
+        return [self.Id,
+                self.Quantity,
+                self.Price,
+                self.MinimumQuantity,
+                self.DisclosedQuantity,
+                self.Validity,
+                self.ValidityDateYear,
+                self.ValidityDateMonth,
+                self.ValidityDateDay]
+    # def to_json(self):
+    #     return {"Id": self.Id,
+    #             "Quantity": self.Quantity,
+    #             "Price": self.Price,
+    #             "MinimumQuantity": self.MinimumQuantity,
+    #             "DisclosedQuantity": self.DisclosedQuantity,
+    #             "Validity": self.Validity,
+    #             "ValidityDate.Year": self.ValidityDateYear,
+    #             "ValidityDate.Month": self.ValidityDateMonth,
+    #             "ValidityDate.Day": self.ValidityDateDay,
+    #             }
 
 
 class CancelOrder:
     def __init__(self, Id):
         self.Id = Id
 
+    def to_json(self):
+        return [self.Id]
+
 
 class GetTime:
     def __init__(self, Time):
         self.Time = Time
+
+    def to_json(self):
+        return [self.Time]
 
 
 class AddInstrumentToMarketwatch:
     def __init__(self, instrumentId):
         self.instrumentId = instrumentId
 
+    def to_json(self):
+        return [self.instrumentId]
+
 
 class RemoveInstrumentToMarketwatch:
     def __init__(self, instrumentId):
         self.instrumentId = instrumentId
+
+    def to_json(self):
+        return [self.instrumentId]
 
 
 class SetActiveInstrument:
     def __init__(self, instrumentId):
         self.instrumentId = instrumentId
 
+    def to_json(self):
+        return [self.instrumentId]
+
 
 class ChangeMarketWatch:
     def __init__(self, Id):
         self.Id = Id
+
+    def to_json(self):
+        return [self.Id]
 
 
 class AddNewMarketWatch:
     def __init__(self, Name):
         self.Name = Name
 
+    def to_json(self):
+        return [self.Name]
+
 
 class RemoveMarketwatch:
     def __init__(self, Id):
         self.Id = Id
+
+    def to_json(self):
+        return [self.Id]
 
 
 class GetAcountRemainReport:
@@ -136,6 +187,15 @@ class GetAcountRemainReport:
         self.ToYear = ToYear
         self.ToMonth = ToMonth
         self.ToDay = ToDay
+
+    def to_json(self):
+        return [self.ReportType,
+                self.FromYear,
+                self.FromMonth,
+                self.FromDay,
+                self.ToYear,
+                self.ToMonth,
+                self.ToDay]
 
 
 class GetOrderListReport:
@@ -157,10 +217,23 @@ class GetOrderListReport:
         self.ToMonth = ToMonth
         self.ToDay = ToDay
 
+    def to_json(self):
+        return [self.instrumentId,
+                self.orderStatus,
+                self.FromYear,
+                self.FromMonth,
+                self.FromDay,
+                self.ToYear,
+                self.ToMonth,
+                self.ToDay]
+
 
 class GetInstrumentDetailForOrder:
     def __init__(self, instrumentId):
         self.instrumentId = instrumentId
+
+    def to_json(self):
+        return [self.instrumentId]
 
 
 class OrderAdded:

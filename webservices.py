@@ -1,11 +1,16 @@
+import time
+
 from gevent import monkey as curious_george
+
 curious_george.patch_all(thread=False, select=False)
-import requests
+from requests import Session
+from signalr import Connection
+
 from signalrcore.hub_connection_builder import HubConnectionBuilder
 from base64 import b64decode
 from zlib import decompress, MAX_WBITS
 
-from signalr import Connection
+# from signalr import Connection
 
 from APIModels import *
 from models import ObjectEncoder
@@ -28,23 +33,36 @@ class Hub:
         self.token = process_message(data)['token']
 
     def login(self, userId, password, login_url=None):
-        with requests.Session() as session:
-            if login_url:
-                connection = Connection(login_url, session)
-            else:
-                connection = Connection(self.server_url, session)
-            apiTokenHub = connection.register_hub('GetNewAPIToken')
-            connection.start()
-            apiTokenHub.client.on('GetAPIToken', self.setToken)
+        with Session() as session:
+            # create a connection
+            self.connection = Connection(login_url, session)
+            self.token_hub = self.connection.register_hub('OmsClientTokenHub')
 
-            credentials = json.dumps({"userId": userId, "password": password}, cls=ObjectEncoder)
-            with connection:
-                apiTokenHub.server.invoke('GetAPIToken', credentials)
-            # connection.close()
+            # chat = connection.register_hub('OmsClientHub')
 
-        # response = requests.post(self.server_url, data={"userId": userId, "password": password})
-        # self.token = response.json()["token"]
-        # return self.token
+            def print_error(error):
+                print('error: ', error)
+
+            def gotit(**data):
+                print(data)
+                
+            def token_get(**data):
+                print('token:', data)
+
+            self.connection.error += print_error
+            self.connection.received += gotit
+            # connection.start()
+            # chat.client.on('GetAPIToken', gotit)
+            self.token_hub.client.on('ex', token_get)
+            with self.connection:
+                # post another message
+                # chat.server.invoke('GetNewAPIToken', userId, password)
+                self.token_hub.server.invoke('GetNewAPIToken', userId, password)
+
+                self.connection.wait(1)
+
+    def message(self, **first):
+        print(first)
 
     def connect(self):
         self.hub_connection = HubConnectionBuilder() \

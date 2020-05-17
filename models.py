@@ -3,7 +3,6 @@ import json
 from enum import Enum
 
 
-
 class ErrorObject(object):
     def __init__(self, i: int, m: str):
         self.i = i
@@ -581,4 +580,3 @@ class ObjectEncoder(json.JSONEncoder):
             return self.default(d)
 
         return obj
-
