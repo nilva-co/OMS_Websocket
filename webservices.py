@@ -46,7 +46,7 @@ class Hub:
             # self.connection.received += gotit
             # connection.start()
             with self.connection:
-                self.login(userId, password)
+                self.Login(userId, password)
                 # post another message
                 # chat.server.invoke('GetNewAPIToken', userId, password)
                 # self.token_hub.server.invoke('GetNewAPIToken', userId, password)
@@ -93,9 +93,9 @@ class Hub:
 
     ### server ###
 
-    def Login(self, **data):
+    def Login(self, *data):
         self.connection.received += self.token_get
-        token = self.token_hub.server.invoke('GetNewAPIToken', **data)
+        token = self.token_hub.server.invoke('GetNewAPIToken', *data)
         print("get token: ", token)
 
     def AddOrder(self, data: AddOrder):
