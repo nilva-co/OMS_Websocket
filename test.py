@@ -8,5 +8,5 @@ if __name__ == "__main__":
     user = 'samin'
     password = '123456789'
     hub = Hub(url)
-    # hub.login(user, password)
-    hub.connect()
+    hub.login(user, password)
+    # hub.connect()
