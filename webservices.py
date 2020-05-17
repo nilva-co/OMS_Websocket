@@ -49,7 +49,7 @@ class Hub:
                 print('token:', data)
 
             self.connection.error += print_error
-            self.connection.received += gotit
+            # self.connection.received += gotit
             # connection.start()
             self.token_hub.client.on('GetNewAPIToken', token_get)
             with self.connection:
