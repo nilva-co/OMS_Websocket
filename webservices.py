@@ -2,34 +2,90 @@ import time
 
 from gevent import monkey as curious_george
 
+from logic import main
+
 curious_george.patch_all(thread=False, select=False)
 from requests import Session
 from signalr import Connection
 
-from base64 import b64decode
-from zlib import decompress, MAX_WBITS
-
-# from signalr import Connection
-
-from APIModels import *
-from models import ObjectEncoder
-
-
-def process_message(message):
-    deflated_msg = decompress(b64decode(message), -MAX_WBITS)
-    return json.loads(deflated_msg.decode())
-
 
 class Hub:
     token = None
+    # token = 'AQAAANCMnd8BFdERjHoAwE_Cl-sBAAAAeszMjFsAq02WR2mA7Cux3wAAAAACAAAAAAAQZgAAAAEAACAAAAAU5qRWjn6CbVOyZRfI8GQDTFgp2oCT5oh7rg8cadCb0gAAAAAOgAAAAAIAACAAAABqsTfLNXTE43Wgz8zQHGJrhM3E1Cs9nroSmGTvZWuJrFAAAAAaeVfaCwZ5n1ktBvvFRpAMbzDR9a-YQOv1rFgUUnNpO3BQqVZb3IwHfKyh5a8siJ9yp63GSpUDCbhNI5eVEcAP91mLPozgWycKoW-djv9CUUAAAAC_qzXONjCXmJJjdIx95Wht3ih5Txe3Sjxgz0MH6M4m171BVN2rBwzCuvAaRhBlprMmkG9S2F_ladcnG16O7htt'
     hub_connection = None
     connection = None
     hub = None
     token_hub = None
-    url = 'https://boursei.ephoenix.ir/realtime'
 
-    def setToken(self, data):
-        self.token = process_message(data)['token']
+    def __init__(self, url, log=False):
+        self.url = url
+        self.log = log
+
+    def token_get(self, **data):
+        if 'R' in data:
+            print('token:\n', data['R'])
+        if 'R' in data:
+            if 'ex' in data['R']:
+                return
+            self.token = data['R']
+            self.connection.received -= self.token_get
+            self.connection.close()
+            self.connect()
+
+    def stop(self):
+        self.connection.close()
+        self.hub_connection.close()
+
+    def connect(self):
+        # with Session() as session:
+        with Session() as session:
+            # create a connection
+
+            self.hub_connection = Connection(self.url, session, self.token)
+
+            def print_error(error):
+                print('error: ', error)
+
+            def default_received(**data):
+                if self.log:
+                    print("msg log:\n", data)
+
+                if 'R' in data:
+                    if 'ex' in data['R']:
+                        self.error_handler(data['R']['ex'])
+
+            self.hub_connection.error += print_error
+            self.hub_connection.received += default_received
+
+            self.hub = self.hub_connection.register_hub('OmsClientHub')
+
+            self.hub.client.on("orderAdded", self.OrderAdded)
+            self.hub.client.on("orderEdited", self.OrderEdited)
+            self.hub.client.on("orderStateChange", self.OrderStateChange)
+            self.hub.client.on("orderExecution", self.OrderExecution)
+            self.hub.client.on("orderError", self.OrderError)
+            self.hub.client.on("showError", self.ShowError)
+            self.hub.client.on("creditInfoUpdate", self.CreditInfoUpdate)
+            self.hub.client.on("assetPriceChange", self.AssetPriceChange)
+            self.hub.client.on("assetChange", self.AssetChange)
+            self.hub.client.on("positionChange", self.PositionChange)
+            self.hub.client.on("removeAsset", self.RemoveAsset)
+            self.hub.client.on("activeInstrumentBestLimitChange", self.ActiveInstrumentBestLimitChange)
+            self.hub.client.on("activeInstrumentThresholdsChange", self.ActiveInstrumentThresholdsChange)
+            self.hub.client.on("instrumentFirstBestLimitChange", self.InstrumentFirstBestLimitChange)
+            self.hub.client.on("instrumentTrade", self.InstrumentTrade)
+            self.hub.client.on("instrumentStateChange", self.InstrumentStateChange)
+            self.hub.client.on("instrumentTradePercentChage", self.InstrumentTradePercentChage)
+            self.hub.client.on("instrumentClosingPriceChange", self.InstrumentClosingPriceChange)
+            self.hub.client.on("instrumentEPSDataChange", self.InstrumentEPSDataChange)
+            self.hub.client.on("overallStatisticsChange", self.OverallStatisticsChange)
+            self.hub.client.on("initUI", self.InitUI)
+            self.hub.client.on("instrumentAdded", self.InstrumentAdded)
+            self.hub.client.on("instrumentRemoved", self.InstrumentRemoved)
+
+            with self.hub_connection:
+                main(self)
+                self.hub_connection.wait(100)
 
     def login(self, userId, password):
         with Session() as session:
@@ -41,282 +97,160 @@ class Hub:
                 print('error: ', error)
 
             def default_received(**data):
-                print("default msg receive:\n", data)
+                if self.log:
+                    print("msg log:\n", data)
 
             self.connection.error += print_error
             self.connection.received += default_received
 
             with self.connection:
-                self.Login(userId, password)
+                self._login(userId, password)
 
                 self.connection.wait(1)
 
-    def message(self, **first):
-        print(first)
-
-    def connect(self):
-        # with Session() as session:
-        session = Session()
-        # create a connection
-        session.headers.update({'token': '{tok}'.format(tok=self.token)})
-        self.hub_connection = Connection(self.url, session)
-
-        def print_error(error):
-            print('error: ', error)
-
-        def default_received(**data):
-            print("default msg receive:\n", data)
-
-            if "'ex'" in data:
-                print_error(data['R'])
-
-        self.hub_connection.error += print_error
-        self.hub_connection.received += default_received
-
-        self.hub = self.hub_connection.register_hub('OmsClientHub')
-
-        self.hub.client.on("OrderAdded", self.OrderAdded)
-        self.hub.client.on("OrderEdited", self.OrderEdited)
-        self.hub.client.on("OrderStateChange", self.OrderStateChange)
-        self.hub.client.on("OrderExecution", self.OrderExecution)
-        self.hub.client.on("OrderError", self.OrderError)
-        self.hub.client.on("ShowError", self.ShowError)
-        self.hub.client.on("CreditInfoUpdate", self.CreditInfoUpdate)
-        self.hub.client.on("AssetPriceChange", self.AssetPriceChange)
-        self.hub.client.on("AssetChange", self.AssetChange)
-        self.hub.client.on("PositionChange", self.PositionChange)
-        self.hub.client.on("RemoveAsset", self.RemoveAsset)
-        self.hub.client.on("ActiveInstrumentBestLimitChange", self.ActiveInstrumentBestLimitChange)
-        self.hub.client.on("ActiveInstrumentThresholdsChange", self.ActiveInstrumentThresholdsChange)
-        self.hub.client.on("InstrumentFirstBestLimitChange", self.InstrumentFirstBestLimitChange)
-        self.hub.client.on("InstrumentTrade", self.InstrumentTrade)
-        self.hub.client.on("InstrumentStateChange", self.InstrumentStateChange)
-        self.hub.client.on("InstrumentTradePercentChage", self.InstrumentTradePercentChage)
-        self.hub.client.on("InstrumentClosingPriceChange", self.InstrumentClosingPriceChange)
-        self.hub.client.on("InstrumentEPSDataChange", self.InstrumentEPSDataChange)
-        self.hub.client.on("OverallStatisticsChange", self.OverallStatisticsChange)
-        self.hub.client.on("InitUI", self.InitUI)
-        self.hub.client.on("InstrumentAdded", self.InstrumentAdded)
-        self.hub.client.on("InstrumentRemoved", self.InstrumentRemoved)
-
-        # self.hub.on_open(lambda: print("connection opened and handshake received ready to send messages"))
-        # self.hub.on_close(lambda: print("connection closed"))
-        with self.hub_connection:
-            self.AddOrder('asdf')
-            self.hub_connection.wait(1)
-
-    def stop(self):
-        self.hub_connection.close()
+    def error_handler(self, *args, **kwargs):
+        print('error:\n', *args)
+        # implement your error handler here
 
     ### server ###
-
-    def Login(self, *data):
-        def token_get(**data):
-            if 'R' in data:
-                print('token:\n', data['R'])
-            if 'R' in data:
-                self.token = data['R']
-                self.connection.received -= token_get
-                self.connection.close()
-                self.connect()
-
-        self.connection.received += token_get
+    def _login(self, *data):
+        self.connection.received += self.token_get
         self.token_hub.server.invoke('GetNewAPIToken', *data)
 
-    def AddOrder(self, *data):
-        # msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub.server.invoke("AddOrder", *data)
+    def AddOrder(self, *args, **kwargs):
+        self.hub.server.invoke("AddOrder", *args, **kwargs)
 
-    def EditOrder(self, data):
-        msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub.server.invoke("EditOrder", msg)
+    def EditOrder(self, *args, **kwargs):
+        self.hub.server.invoke("EditOrder", *args)
 
-    def CancelOrder(self, data):
-        msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub.server.invoke("CancelOrder", msg)
+    def CancelOrder(self, *args, **kwargs):
+        self.hub.server.invoke("CancelOrder", *args)
 
-    def GetTime(self, data):
-        msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub.server.invoke("GetTime", msg)
+    def GetTime(self, *args, **kwargs):
+        self.hub.server.invoke("GetTime", *args)
 
-    def Logout(self, data=None):
+    def Logout(self, *args, **kwargs):
         self.hub.server.invoke("Logout")
 
-    def AddInstrumentToMarketwatch(self, data):
-        msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub.server.invoke("AddInstrumentToMarketwatch", msg)
+    def AddInstrumentToMarketwatch(self, *args, **kwargs):
+        self.hub.server.invoke("AddInstrumentToMarketwatch", *args)
 
-    def RemoveInstrumentFromMarketwatch(self, data):
-        msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub.server.invoke("RemoveInstrumentFromMarketwatch", msg)
+    def RemoveInstrumentFromMarketwatch(self, *args, **kwargs):
+        self.hub.server.invoke("RemoveInstrumentFromMarketwatch", *args)
 
-    def SetActiveInstrument(self, data):
-        msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub.server.invoke("SetActiveInstrument", msg)
+    def SetActiveInstrument(self, *args, **kwargs):
+        self.hub.server.invoke("SetActiveInstrument", *args)
 
-    def GetInstrumentList(self, data=None):
+    def GetInstrumentList(self, *args, **kwargs):
         self.hub.server.invoke("GetInstrumentList")
 
-    def ChangeMarketWatch(self, data):
-        msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub.server.invoke("ChangeMarketWatch", msg)
+    def ChangeMarketWatch(self, *args, **kwargs):
+        self.hub.server.invoke("ChangeMarketWatch", *args)
 
-    def AddNewMarketWatch(self, data):
-        msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub.server.invoke("AddNewMarketWatch", msg)
+    def AddNewMarketWatch(self, *args, **kwargs):
+        self.hub.server.invoke("AddNewMarketWatch", *args)
 
-    def RemoveMarketwatch(self, data):
-        msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub.server.invoke("RemoveMarketwatch", msg)
+    def RemoveMarketwatch(self, *args, **kwargs):
+        self.hub.server.invoke("RemoveMarketwatch", *args)
 
-    def GetAcountRemainReport(self, data):
-        msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub.server.invoke("GetAcountRemainReport", msg)
+    def GetAcountRemainReport(self, *args, **kwargs):
+        self.hub.server.invoke("GetAcountRemainReport", *args)
 
-    def GetOrderListReport(self, data):
-        msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub.server.invoke("GetOrderListReport", msg)
+    def GetOrderListReport(self, *args, **kwargs):
+        self.hub.server.invoke("GetOrderListReport", args)
 
-    def GetInstrumentDetailForOrder(self, data):
-        msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub.server.invoke("GetInstrumentDetailForOrder", msg)
+    def GetInstrumentDetailForOrder(self, *args, **kwargs):
+        self.hub.server.invoke("GetInstrumentDetailForOrder", *args)
 
     ### Client ###
+    def OrderAdded(self, *args, **kwargs):
+        print("args: \n", args)
+        # implement your code here
 
-    def OrderAdded(self, data):
-        msg = process_message(data)
-        if msg['ex']:
-            pass
-        return OrderAdded.from_json(msg)
+    def OrderEdited(self, *args, **kwargs):
+        print("args: \n", args)
+        # implement your code here
 
-    def OrderEdited(self, data):
-        msg = process_message(data)
-        if msg['ex']:
-            pass
-        return OrderEdited.from_json(msg)
+    def OrderStateChange(self, *args, **kwargs):
+        print("args: \n", args)
+        # implement your code here
 
-    def OrderStateChange(self, data):
-        msg = process_message(data)
-        if msg['ex']:
-            pass
-        return OrderStateChange.from_json(msg)
+    def OrderExecution(self, *args, **kwargs):
+        print("args: \n", args)
+        # implement your code here
 
-    def OrderExecution(self, data):
-        msg = process_message(data)
-        if msg['ex']:
-            pass
-        return OrderExecution.from_json(msg)
+    def OrderError(self, *args, **kwargs):
+        print("args: \n", args)
+        # implement your code here
 
-    def OrderError(self, data):
-        msg = process_message(data)
-        if msg['ex']:
-            pass
-        return OrderError.from_json(msg)
+    def ShowError(self, *args, **kwargs):
+        print("args: \n", args)
+        # implement your code here
 
-    def ShowError(self, data):
-        msg = process_message(data)
-        if msg['ex']:
-            pass
-        return ShowError.from_json(msg)
+    def CreditInfoUpdate(self, *args, **kwargs):
+        print("args: \n", args)
+        # implement your code here
 
-    def CreditInfoUpdate(self, data):
-        msg = process_message(data)
-        if msg['ex']:
-            pass
-        return CreditInfoUpdate.from_json(msg)
+    def AssetPriceChange(self, *args, **kwargs):
+        print("args: \n", args)
+        # implement your code here
 
-    def AssetPriceChange(self, data):
-        msg = process_message(data)
-        if msg['ex']:
-            pass
-        return AssetPriceChange.from_json(msg)
+    def AssetChange(self, *args, **kwargs):
+        print("args: \n", args)
+        # implement your code here
 
-    def AssetChange(self, data):
-        msg = process_message(data)
-        if msg['ex']:
-            pass
-        return AssetChange.from_json(msg)
+    def PositionChange(self, *args, **kwargs):
+        print("args: \n", args)
+        # implement your code here
 
-    def PositionChange(self, data):
-        msg = process_message(data)
-        if msg['ex']:
-            pass
-        return PositionChange.from_json(msg)
+    def RemoveAsset(self, *args, **kwargs):
+        print("args: \n", args)
+        # implement your code here
 
-    def RemoveAsset(self, data):
-        msg = process_message(data)
-        if msg['ex']:
-            pass
-        return RemoveAsset.from_json(msg)
+    def ActiveInstrumentBestLimitChange(self, *args, **kwargs):
+        print("args: \n", args)
+        # implement your code here
 
-    def ActiveInstrumentBestLimitChange(self, data):
-        msg = process_message(data)
-        if msg['ex']:
-            pass
-        return ActiveInstrumentBestLimitChange.from_json(msg)
+    def ActiveInstrumentThresholdsChange(self, *args, **kwargs):
+        print("args: \n", args)
+        # implement your code here
 
-    def ActiveInstrumentThresholdsChange(self, data):
-        msg = process_message(data)
-        if msg['ex']:
-            pass
-        return ActiveInstrumentThresholdsChange.from_json(msg)
+    def InstrumentFirstBestLimitChange(self, *args, **kwargs):
+        print("args: \n", args)
+        # implement your code here
 
-    def InstrumentFirstBestLimitChange(self, data):
-        msg = process_message(data)
-        if msg['ex']:
-            pass
-        return InstrumentFirstBestLimitChange.from_json(msg)
+    def InstrumentTrade(self, *args, **kwargs):
+        print("args: \n", args)
+        # implement your code here
 
-    def InstrumentTrade(self, data):
-        msg = process_message(data)
-        if msg['ex']:
-            pass
-        return InstrumentTrade.from_json(msg)
+    def InstrumentStateChange(self, *args, **kwargs):
+        print("args: \n", args)
+        # implement your code here
 
-    def InstrumentStateChange(self, data):
-        msg = process_message(data)
-        if msg['ex']:
-            pass
-        return InstrumentStateChange.from_json(msg)
+    def InstrumentTradePercentChage(self, *args, **kwargs):
+        print("args: \n", args)
+        # implement your code here
 
-    def InstrumentTradePercentChage(self, data):
-        msg = process_message(data)
-        if msg['ex']:
-            pass
-        return InstrumentTradePercentChage.from_json(msg)
+    def InstrumentClosingPriceChange(self, *args, **kwargs):
+        print("args: \n", args)
+        # implement your code here
 
-    def InstrumentClosingPriceChange(self, data):
-        msg = process_message(data)
-        if msg['ex']:
-            pass
-        return InstrumentClosingPriceChange.from_json(msg)
+    def InstrumentEPSDataChange(self, *args, **kwargs):
+        print("args: \n", args)
+        # implement your code here
 
-    def InstrumentEPSDataChange(self, data):
-        msg = process_message(data)
-        if msg['ex']:
-            pass
-        return InstrumentEPSDataChange.from_json(msg)
+    def OverallStatisticsChange(self, *args, **kwargs):
+        print("args: \n", args)
+        # implement your code here
 
-    def OverallStatisticsChange(self, data):
-        msg = process_message(data)
-        if msg['ex']:
-            pass
-        return OverallStatisticsChange.from_json(msg)
+    def InitUI(self, *args, **kwargs):
+        print("args: \n", args)
+        # implement your code here
 
-    def InitUI(self, data):
-        msg = process_message(data)
-        if msg['ex']:
-            pass
-        return InitUI.from_json(msg)
+    def InstrumentAdded(self, *args, **kwargs):
+        print("args: \n", args)
+        # implement your code here
 
-    def InstrumentAdded(self, data):
-        msg = process_message(data)
-        if msg['ex']:
-            pass
-        return InstrumentAdded.from_json(msg)
-
-    def InstrumentRemoved(self, data):
-        msg = process_message(data)
-        if msg['ex']:
-            pass
-        return InstrumentRemoved.from_json(msg)
+    def InstrumentRemoved(self, *args, **kwargs):
+        print("args: \n", args)
+        # implement your code here

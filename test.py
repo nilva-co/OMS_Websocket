@@ -1,9 +1,12 @@
+from time import sleep
+
 from models import *
 from webservices import Hub
 
 if __name__ == "__main__":
-    # url = 'http://localhost:5000/chatHub'
+    url = 'https://boursei.ephoenix.ir/realtime'
     user = 'samin'
     password = '123456789'
-    hub = Hub()
-    hub.login(user, password)
+    hub = Hub(url)
+    # hub.login(user, password)
+    hub.connect()
