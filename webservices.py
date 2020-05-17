@@ -6,7 +6,6 @@ curious_george.patch_all(thread=False, select=False)
 from requests import Session
 from signalr import Connection
 
-from signalrcore.hub_connection_builder import HubConnectionBuilder
 from base64 import b64decode
 from zlib import decompress, MAX_WBITS
 
@@ -52,8 +51,7 @@ class Hub:
             self.connection.error += print_error
             self.connection.received += gotit
             # connection.start()
-            # chat.client.on('GetAPIToken', gotit)
-            self.token_hub.client.on('ex', token_get)
+            self.token_hub.client.on('GetNewAPIToken', token_get)
             with self.connection:
                 # post another message
                 # chat.server.invoke('GetNewAPIToken', userId, password)
@@ -65,16 +63,6 @@ class Hub:
         print(first)
 
     def connect(self):
-        self.hub_connection = HubConnectionBuilder() \
-            .with_url(self.server_url, options={
-            "token": self.token
-        }).with_automatic_reconnect({
-            "type": "interval",
-            "keep_alive_interval": 10,
-            "intervals": [1, 3, 5, 6, 7, 87, 3]
-        }) \
-            .build()
-
         self.hub_connection.on("OrderAdded", self.OrderAdded)
         self.hub_connection.on("OrderEdited", self.OrderEdited)
         self.hub_connection.on("OrderStateChange", self.OrderStateChange)
