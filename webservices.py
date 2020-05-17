@@ -42,22 +42,19 @@ class Hub:
             def print_error(error):
                 print('error: ', error)
 
-            def gotit(**data):
-                print(data)
-                
-            def token_get(data):
-                print('token:', data)
-
             self.connection.error += print_error
             # self.connection.received += gotit
             # connection.start()
-            self.token_hub.client.on('GetNewAPIToken', token_get)
             with self.connection:
+                self.login(userId, password)
                 # post another message
                 # chat.server.invoke('GetNewAPIToken', userId, password)
-                self.token_hub.server.invoke('GetNewAPIToken', userId, password)
+                # self.token_hub.server.invoke('GetNewAPIToken', userId, password)
 
                 self.connection.wait(1)
+
+    def token_get(self, **data):
+        print('token:', data)
 
     def message(self, **first):
         print(first)
@@ -95,6 +92,11 @@ class Hub:
         self.hub_connection.stop()
 
     ### server ###
+
+    def Login(self, **data):
+        self.connection.received += self.token_get
+        token = self.token_hub.server.invoke('GetNewAPIToken', **data)
+        print("get token: ", token)
 
     def AddOrder(self, data: AddOrder):
         msg = json.dumps(data, cls=ObjectEncoder)
