@@ -23,21 +23,19 @@ def process_message(message):
 class Hub:
     token = None
     hub_connection = None
-
-    def __init__(self, server_url, userId, password):
-        self.server_url = server_url
-        # self.login(userId, password)
+    connection = None
+    hub = None
+    token_hub = None
+    url = 'https://boursei.ephoenix.ir/realtime'
 
     def setToken(self, data):
         self.token = process_message(data)['token']
 
-    def login(self, userId, password, login_url=None):
+    def login(self, userId, password):
         with Session() as session:
             # create a connection
-            self.connection = Connection(login_url, session)
+            self.connection = Connection(self.url, session)
             self.token_hub = self.connection.register_hub('OmsClientTokenHub')
-
-            # chat = connection.register_hub('OmsClientHub')
 
             def print_error(error):
                 print('error: ', error)
@@ -47,116 +45,136 @@ class Hub:
 
             self.connection.error += print_error
             self.connection.received += default_received
-            # connection.start()
-            with self.connection:
-                self.Login(userId, password)
-                # post another message
-                # chat.server.invoke('GetNewAPIToken', userId, password)
-                self.token_hub.server.invoke('GetNewAPIToken', userId, password)
 
-                self.connection.wait(1)
+            self.connection.start()
+            self.Login(userId, password)
 
     def message(self, **first):
         print(first)
 
     def connect(self):
-        self.hub_connection.on("OrderAdded", self.OrderAdded)
-        self.hub_connection.on("OrderEdited", self.OrderEdited)
-        self.hub_connection.on("OrderStateChange", self.OrderStateChange)
-        self.hub_connection.on("OrderExecution", self.OrderExecution)
-        self.hub_connection.on("OrderError", self.OrderError)
-        self.hub_connection.on("ShowError", self.ShowError)
-        self.hub_connection.on("CreditInfoUpdate", self.CreditInfoUpdate)
-        self.hub_connection.on("AssetPriceChange", self.AssetPriceChange)
-        self.hub_connection.on("AssetChange", self.AssetChange)
-        self.hub_connection.on("PositionChange", self.PositionChange)
-        self.hub_connection.on("RemoveAsset", self.RemoveAsset)
-        self.hub_connection.on("ActiveInstrumentBestLimitChange", self.ActiveInstrumentBestLimitChange)
-        self.hub_connection.on("ActiveInstrumentThresholdsChange", self.ActiveInstrumentThresholdsChange)
-        self.hub_connection.on("InstrumentFirstBestLimitChange", self.InstrumentFirstBestLimitChange)
-        self.hub_connection.on("InstrumentTrade", self.InstrumentTrade)
-        self.hub_connection.on("InstrumentStateChange", self.InstrumentStateChange)
-        self.hub_connection.on("InstrumentTradePercentChage", self.InstrumentTradePercentChage)
-        self.hub_connection.on("InstrumentClosingPriceChange", self.InstrumentClosingPriceChange)
-        self.hub_connection.on("InstrumentEPSDataChange", self.InstrumentEPSDataChange)
-        self.hub_connection.on("OverallStatisticsChange", self.OverallStatisticsChange)
-        self.hub_connection.on("InitUI", self.InitUI)
-        self.hub_connection.on("InstrumentAdded", self.InstrumentAdded)
-        self.hub_connection.on("InstrumentRemoved", self.InstrumentRemoved)
+        # with Session() as session:
+        session = Session()
+        # create a connection
+        session.headers.update({'token': '{tok}'.format(tok=self.token)})
+        self.hub_connection = Connection(self.url, session)
 
-        self.hub_connection.on_open(lambda: print("connection opened and handshake received ready to send messages"))
-        self.hub_connection.on_close(lambda: print("connection closed"))
-        self.hub_connection.start()
+        def print_error(error):
+            print('error: ', error)
+
+        def default_received(**data):
+            print("default msg receive:\n", data)
+
+            if "'ex'" in data:
+                print_error(data['R'])
+
+        self.hub_connection.error += print_error
+        self.hub_connection.received += default_received
+
+        self.hub = self.hub_connection.register_hub('OmsClientHub')
+
+        self.hub.on("OrderAdded", self.OrderAdded)
+        self.hub.on("OrderEdited", self.OrderEdited)
+        self.hub.on("OrderStateChange", self.OrderStateChange)
+        self.hub.on("OrderExecution", self.OrderExecution)
+        self.hub.on("OrderError", self.OrderError)
+        self.hub.on("ShowError", self.ShowError)
+        self.hub.on("CreditInfoUpdate", self.CreditInfoUpdate)
+        self.hub.on("AssetPriceChange", self.AssetPriceChange)
+        self.hub.on("AssetChange", self.AssetChange)
+        self.hub.on("PositionChange", self.PositionChange)
+        self.hub.on("RemoveAsset", self.RemoveAsset)
+        self.hub.on("ActiveInstrumentBestLimitChange", self.ActiveInstrumentBestLimitChange)
+        self.hub.on("ActiveInstrumentThresholdsChange", self.ActiveInstrumentThresholdsChange)
+        self.hub.on("InstrumentFirstBestLimitChange", self.InstrumentFirstBestLimitChange)
+        self.hub.on("InstrumentTrade", self.InstrumentTrade)
+        self.hub.on("InstrumentStateChange", self.InstrumentStateChange)
+        self.hub.on("InstrumentTradePercentChage", self.InstrumentTradePercentChage)
+        self.hub.on("InstrumentClosingPriceChange", self.InstrumentClosingPriceChange)
+        self.hub.on("InstrumentEPSDataChange", self.InstrumentEPSDataChange)
+        self.hub.on("OverallStatisticsChange", self.OverallStatisticsChange)
+        self.hub.on("InitUI", self.InitUI)
+        self.hub.on("InstrumentAdded", self.InstrumentAdded)
+        self.hub.on("InstrumentRemoved", self.InstrumentRemoved)
+
+        # self.hub.on_open(lambda: print("connection opened and handshake received ready to send messages"))
+        # self.hub.on_close(lambda: print("connection closed"))
+        self.hub.start()
 
     def stop(self):
-        self.hub_connection.stop()
+        self.hub_connection.close()
 
     ### server ###
 
     def Login(self, *data):
         def token_get(**data):
             print('token:', data)
-            self.connection.received -= token_get
+            if "'R'" in data:
+                self.token = data['R']
+                self.connection.received -= token_get
+                self.connection.close()
+                self.connect()
+
         self.connection.received += token_get
         self.token_hub.server.invoke('GetNewAPIToken', *data)
 
-    def AddOrder(self, data: AddOrder):
-        msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub_connection.send("AddOrder", msg)
+    def AddOrder(self, *data):
+        # msg = json.dumps(data, cls=ObjectEncoder)
+        self.hub.server.invoke("AddOrder", *data)
 
     def EditOrder(self, data):
         msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub_connection.send("EditOrder", msg)
+        self.hub.server.invoke("EditOrder", msg)
 
     def CancelOrder(self, data):
         msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub_connection.send("CancelOrder", msg)
+        self.hub.server.invoke("CancelOrder", msg)
 
     def GetTime(self, data):
         msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub_connection.send("GetTime", msg)
+        self.hub.server.invoke("GetTime", msg)
 
     def Logout(self, data=None):
-        self.hub_connection.send("Logout")
+        self.hub.server.invoke("Logout")
 
     def AddInstrumentToMarketwatch(self, data):
         msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub_connection.send("AddInstrumentToMarketwatch", msg)
+        self.hub.server.invoke("AddInstrumentToMarketwatch", msg)
 
     def RemoveInstrumentFromMarketwatch(self, data):
         msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub_connection.send("RemoveInstrumentFromMarketwatch", msg)
+        self.hub.server.invoke("RemoveInstrumentFromMarketwatch", msg)
 
     def SetActiveInstrument(self, data):
         msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub_connection.send("SetActiveInstrument", msg)
+        self.hub.server.invoke("SetActiveInstrument", msg)
 
     def GetInstrumentList(self, data=None):
-        self.hub_connection.send("GetInstrumentList")
+        self.hub.server.invoke("GetInstrumentList")
 
     def ChangeMarketWatch(self, data):
         msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub_connection.send("ChangeMarketWatch", msg)
+        self.hub.server.invoke("ChangeMarketWatch", msg)
 
     def AddNewMarketWatch(self, data):
         msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub_connection.send("AddNewMarketWatch", msg)
+        self.hub.server.invoke("AddNewMarketWatch", msg)
 
     def RemoveMarketwatch(self, data):
         msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub_connection.send("RemoveMarketwatch", msg)
+        self.hub.server.invoke("RemoveMarketwatch", msg)
 
     def GetAcountRemainReport(self, data):
         msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub_connection.send("GetAcountRemainReport", msg)
+        self.hub.server.invoke("GetAcountRemainReport", msg)
 
     def GetOrderListReport(self, data):
         msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub_connection.send("GetOrderListReport", msg)
+        self.hub.server.invoke("GetOrderListReport", msg)
 
     def GetInstrumentDetailForOrder(self, data):
         msg = json.dumps(data, cls=ObjectEncoder)
-        self.hub_connection.send("GetInstrumentDetailForOrder", msg)
+        self.hub.server.invoke("GetInstrumentDetailForOrder", msg)
 
     ### Client ###
 
