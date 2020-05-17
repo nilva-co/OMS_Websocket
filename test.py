@@ -7,3 +7,5 @@ if __name__ == "__main__":
     password = '123456789'
     hub = Hub()
     hub.login(user, password)
+    while True:
+        pass

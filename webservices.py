@@ -108,7 +108,7 @@ class Hub:
 
     def Login(self, *data):
         def token_get(**data):
-            print('token:', data)
+            print('token:\n', data)
             if "'R'" in data:
                 self.token = data['R']
                 self.connection.received -= token_get
