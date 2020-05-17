@@ -46,8 +46,10 @@ class Hub:
             self.connection.error += print_error
             self.connection.received += default_received
 
-            self.connection.start()
-            self.Login(userId, password)
+            with self.connection:
+                self.Login(userId, password)
+
+                self.connection.wait(1)
 
     def message(self, **first):
         print(first)
@@ -73,33 +75,35 @@ class Hub:
 
         self.hub = self.hub_connection.register_hub('OmsClientHub')
 
-        self.hub.on("OrderAdded", self.OrderAdded)
-        self.hub.on("OrderEdited", self.OrderEdited)
-        self.hub.on("OrderStateChange", self.OrderStateChange)
-        self.hub.on("OrderExecution", self.OrderExecution)
-        self.hub.on("OrderError", self.OrderError)
-        self.hub.on("ShowError", self.ShowError)
-        self.hub.on("CreditInfoUpdate", self.CreditInfoUpdate)
-        self.hub.on("AssetPriceChange", self.AssetPriceChange)
-        self.hub.on("AssetChange", self.AssetChange)
-        self.hub.on("PositionChange", self.PositionChange)
-        self.hub.on("RemoveAsset", self.RemoveAsset)
-        self.hub.on("ActiveInstrumentBestLimitChange", self.ActiveInstrumentBestLimitChange)
-        self.hub.on("ActiveInstrumentThresholdsChange", self.ActiveInstrumentThresholdsChange)
-        self.hub.on("InstrumentFirstBestLimitChange", self.InstrumentFirstBestLimitChange)
-        self.hub.on("InstrumentTrade", self.InstrumentTrade)
-        self.hub.on("InstrumentStateChange", self.InstrumentStateChange)
-        self.hub.on("InstrumentTradePercentChage", self.InstrumentTradePercentChage)
-        self.hub.on("InstrumentClosingPriceChange", self.InstrumentClosingPriceChange)
-        self.hub.on("InstrumentEPSDataChange", self.InstrumentEPSDataChange)
-        self.hub.on("OverallStatisticsChange", self.OverallStatisticsChange)
-        self.hub.on("InitUI", self.InitUI)
-        self.hub.on("InstrumentAdded", self.InstrumentAdded)
-        self.hub.on("InstrumentRemoved", self.InstrumentRemoved)
+        self.hub.client.on("OrderAdded", self.OrderAdded)
+        self.hub.client.on("OrderEdited", self.OrderEdited)
+        self.hub.client.on("OrderStateChange", self.OrderStateChange)
+        self.hub.client.on("OrderExecution", self.OrderExecution)
+        self.hub.client.on("OrderError", self.OrderError)
+        self.hub.client.on("ShowError", self.ShowError)
+        self.hub.client.on("CreditInfoUpdate", self.CreditInfoUpdate)
+        self.hub.client.on("AssetPriceChange", self.AssetPriceChange)
+        self.hub.client.on("AssetChange", self.AssetChange)
+        self.hub.client.on("PositionChange", self.PositionChange)
+        self.hub.client.on("RemoveAsset", self.RemoveAsset)
+        self.hub.client.on("ActiveInstrumentBestLimitChange", self.ActiveInstrumentBestLimitChange)
+        self.hub.client.on("ActiveInstrumentThresholdsChange", self.ActiveInstrumentThresholdsChange)
+        self.hub.client.on("InstrumentFirstBestLimitChange", self.InstrumentFirstBestLimitChange)
+        self.hub.client.on("InstrumentTrade", self.InstrumentTrade)
+        self.hub.client.on("InstrumentStateChange", self.InstrumentStateChange)
+        self.hub.client.on("InstrumentTradePercentChage", self.InstrumentTradePercentChage)
+        self.hub.client.on("InstrumentClosingPriceChange", self.InstrumentClosingPriceChange)
+        self.hub.client.on("InstrumentEPSDataChange", self.InstrumentEPSDataChange)
+        self.hub.client.on("OverallStatisticsChange", self.OverallStatisticsChange)
+        self.hub.client.on("InitUI", self.InitUI)
+        self.hub.client.on("InstrumentAdded", self.InstrumentAdded)
+        self.hub.client.on("InstrumentRemoved", self.InstrumentRemoved)
 
         # self.hub.on_open(lambda: print("connection opened and handshake received ready to send messages"))
         # self.hub.on_close(lambda: print("connection closed"))
-        self.hub.start()
+        with self.hub_connection:
+            self.AddOrder('asdf')
+            self.hub_connection.wait(1)
 
     def stop(self):
         self.hub_connection.close()
@@ -108,8 +112,9 @@ class Hub:
 
     def Login(self, *data):
         def token_get(**data):
-            print('token:\n', data)
-            if "'R'" in data:
+            if 'R' in data:
+                print('token:\n', data['R'])
+            if 'R' in data:
                 self.token = data['R']
                 self.connection.received -= token_get
                 self.connection.close()
